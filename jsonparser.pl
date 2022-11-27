@@ -20,26 +20,51 @@ object(Str, [P | R]) :-
     object(Rem, R).
 
 pair(Pair, (K, V), Rem) :-
-    key(Pair, K, Rest),
-    value(Rest, V, Rem).
+    whitespace(Pair, KTrimmed),
+    key(KTrimmed, K, Rest),
+    whitespace(Rest, VTrimmed),
+    value(VTrimmed, V, Rem).
 
 key([':' | T], [], T).
 key(['"' | Chs], Ks, Rem) :-
-    valstr(Chs, K, Rest),
+    stringparse(Chs, K, Rest),
     string_chars(Ks, K),
-    key(Rest, [], Rem).
+    whitespace(Rest, Trimmmed),
+    key(Trimmmed, [], Rem).
 
 value(['}' | T], [], T).
 value([',' | T], [], T).
-%value([Ch | Chs], R, Rest) :-
-%    integer(Chs, R, Rest).
-value(['"'| Chs], S, Rem) :-
-    valstr(Chs, R, Rest),
+value([Ch | Chs], I, Rest) :-
+    Ch \= '"',
+    !,
+    integer([Ch | Chs], R, Rest),
     string_chars(S, R),
-    value(Rest, [], Rem).
+    atom_number(S, I).
+value(['"'| Chs], S, Rem) :-
+    !,
+    stringparse(Chs, R, Rest),
+    string_chars(S, R),
+    whitespace(Rest, RestTrimmed),
+    value(RestTrimmed, [], Rem).
 
-valstr(['"' | T], [], T).
-valstr([Ch | Chs], [Ch | R], Rest) :-
-    valstr(Chs, R, Rest).
+stringparse(['"' | T], [], T).
+stringparse([Ch | Chs], [Ch | R], Rest) :-
+    stringparse(Chs, R, Rest).
+
+integer([',' | T], [], T).
+integer(['}' | T], [], T).
+integer([Ch | Chs], [Ch | R], Rest) :-
+    char_type(Ch, digit),
+    whitespace(Chs, ChsTrimmed),
+    integer(ChsTrimmed, R, Rest).
+
+whitespace([Ch | Chs], [Ch | Chs]) :-
+    Ch \= ' ',
+    Ch \= '\n',
+    Ch \= '\r',
+    Ch \= '\t'.
+whitespace([Ch | Chs], R) :-
+    whitespace(Chs, R).
+
 
 jsonarray().
