@@ -7,8 +7,8 @@ jsonparse(JSONString, Object) :-
 jsonparse(['{' | Chs], jsonobj(R)) :-
     object(['{' | Chs], R).
 
-%jsonparse(['[' | Chs], R) :-
-%    array(Chs, R).
+jsonparse(['[' | Chs], R) :-
+    array(Chs, R, _).
 
 object([], []).
 object(['}'], []).
@@ -34,9 +34,9 @@ key(['"' | Chs], Ks, Rem) :-
 
 value(['}' | T], [], T).
 value([',' | T], [], T).
+value([']' | T], [], [']' | T]).
 value([Ch | Chs], I, Rest) :-
     Ch \= '"',
-    !,
     integer([Ch | Chs], R, Rest),
     string_chars(S, R),
     atom_number(S, I).
@@ -46,6 +46,10 @@ value(['"'| Chs], S, Rem) :-
     string_chars(S, R),
     whitespace(Rest, RestTrimmed),
     value(RestTrimmed, [], Rem).
+value(['[' | Chs], jsonarray(R), Trimmed) :-
+    !,
+    array(Chs, R, Rem),
+    whitespace(Rem, Trimmed).
 
 stringparse(['"' | T], [], T).
 stringparse([Ch | Chs], [Ch | R], Rest) :-
@@ -53,6 +57,7 @@ stringparse([Ch | Chs], [Ch | R], Rest) :-
 
 integer([',' | T], [], T).
 integer(['}' | T], [], T).
+integer([']' | T], [], [']' | T]).
 integer([Ch | Chs], [Ch | R], Rest) :-
     char_type(Ch, digit),
     whitespace(Chs, ChsTrimmed),
@@ -63,8 +68,12 @@ whitespace([Ch | Chs], [Ch | Chs]) :-
     Ch \= '\n',
     Ch \= '\r',
     Ch \= '\t'.
-whitespace([Ch | Chs], R) :-
+whitespace([_ | Chs], R) :-
     whitespace(Chs, R).
 
-
-jsonarray().
+array([']' | T], [], T).
+array(Chs, [V | R], Rest) :-
+    whitespace(Chs, ChsTrimmed),
+    value(ChsTrimmed, V, Rem),
+    whitespace(Rem, RestTrimmed),
+    array(Rem, R, Rest).
