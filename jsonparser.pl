@@ -1,3 +1,15 @@
+jsonread(FileName, JSON) :-
+    string(FileName),
+    open(FileName, read, In),
+    read_string(In, _, Str),
+    jsonparse(Str, JSON).
+
+jsonparse(JSONString, Object) :-
+    atom(JSONString),
+    !,
+    atom_string(JSONString, Str),
+    jsonparse(Str, Object).
+
 jsonparse(JSONString, Object) :-
     string(JSONString),
     !,
@@ -5,19 +17,20 @@ jsonparse(JSONString, Object) :-
     jsonparse(Chars, Object).
 
 jsonparse(['{' | Chs], jsonobj(R)) :-
-    object(['{' | Chs], R).
+    object(['{' | Chs], R, RemTrimmed).
 
 jsonparse(['[' | Chs], R) :-
     array(Chs, R, _).
 
-object([], []).
-object(['}'], []).
-object(['{' | Str], [P | R]) :-
+object(['{', '}' | T], [], T).
+object([], [], []).
+object(['}' | T], [], T).
+object(['{' | Str], [P | R], RemTrimmed) :-
     pair(Str, P, Rem),
-    object(Rem, R).
-object(Str, [P | R]) :-
+    object(Rem, R, RemTrimmed).
+object(Str, [P | R], RemTrimmed) :-
     pair(Str, P, Rem),
-    object(Rem, R).
+    object(Rem, R, RemTrimmed).
 
 pair(Pair, (K, V), Rem) :-
     whitespace(Pair, KTrimmed),
@@ -49,6 +62,9 @@ value(['"'| Chs], S, Rem) :-
 value(['[' | Chs], jsonarray(R), Trimmed) :-
     !,
     array(Chs, R, Rem),
+    whitespace(Rem, Trimmed).
+value(['{' | Chs], jsonobj(R), Trimmed) :-
+    object(['{' | Chs], R, Rem),
     whitespace(Rem, Trimmed).
 
 stringparse(['"' | T], [], T).
