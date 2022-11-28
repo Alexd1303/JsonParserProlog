@@ -19,7 +19,7 @@ jsonparse(JSONString, Object) :-
 jsonparse(['{' | Chs], jsonobj(R)) :-
     object(['{' | Chs], R, RemTrimmed).
 
-jsonparse(['[' | Chs], R) :-
+jsonparse(['[' | Chs], jsonarray(R)) :-
     array(Chs, R, _).
 
 object(['{', '}' | T], [], T).
@@ -45,7 +45,7 @@ key(['"' | Chs], Ks, Rem) :-
     whitespace(Rest, Trimmmed),
     key(Trimmmed, [], Rem).
 
-value(['}' | T], [], T).
+value(['}' | T], [], ['}' | T]).
 value([',' | T], [], T).
 value([']' | T], [], [']' | T]).
 value([Ch | Chs], I, Rest) :-
@@ -93,3 +93,5 @@ array(Chs, [V | R], Rest) :-
     value(ChsTrimmed, V, Rem),
     whitespace(Rem, RestTrimmed),
     array(Rem, R, Rest).
+
+%TODO empty array
