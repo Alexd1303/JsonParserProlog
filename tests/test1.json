@@ -1,4 +1,3 @@
 {
-    "nome" : "Arthur",
-    "cognome" : "Dent"
+    "nested" : {"prova" : 1}
     }

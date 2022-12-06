@@ -161,15 +161,48 @@ jsondump(JSON, FileName) :-
     close(Out).
 
 
-%jsonreverse(jsonobj([(K, V) | []]), [K, ':', V, '}']) :-
-    %string_chars([], Str).
 jsonreverse(jsonobj(L), ["{", Str, "}"]) :-
     reverseobj(L, R),
     atomic_list_concat(R, Str).
 
-reverseobj([(K, V)], ["\"", K, "\"", ':', V]).
-reverseobj([(K, V) | L], ["\"", K, "\"", ':', V, ',' | R]) :-
-    reverseobj(L, R).
-    %jsonreverse(jsonobj([L]), R).
-%jsonreverse(jsonarray([F | L]), ['[' | Str]) :-
+jsonreverse(jsonarray(L), ["[", Str, "]"]) :-
+    reversearray(L, R),
+    atomic_list_concat(R, Str).
 
+reverseobj([], []).
+reverseobj([(K, V)], ["\"", K, "\"", ':', VR]) :-
+    reversevalue(V, VR).
+reverseobj([(K, V) | L], ["\"", K, "\"", ':', VR, ',' | R]) :-
+    reversevalue(V, VR),
+    reverseobj(L, R).
+
+reversearray([], []).
+reversearray([V], [VR]) :-
+    reversevalue(V, VR).
+reversearray([V | L], [VR, ',' | R]) :-
+    reversevalue(V, VR),
+    reversearray(L, R).
+
+reversevalue(V, VR) :-
+    string(V),
+    !,
+    string_chars(V, L),
+    append(['"' | L], ['"'], R),
+    string_chars(VR, R).
+
+reversevalue(V, VR) :-
+    number(V),
+    !,
+    atom_string(V, VR).
+
+reversevalue(V, VR) :-
+    functor(V, jsonobj, 1),
+    !,
+    jsonreverse(V, L),
+    atomic_list_concat(L, VR).
+
+reversevalue(V, VR) :-
+    functor(V, jsonarray, 1),
+    !,
+    jsonreverse(V, L),
+    atomic_list_concat(L, VR).
