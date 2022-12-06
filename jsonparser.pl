@@ -2,7 +2,9 @@ jsonread(FileName, JSON) :-
     string(FileName),
     open(FileName, read, In),
     read_string(In, _, Str),
-    jsonparse(Str, JSON).
+    jsonparse(Str, JSON),
+    !.
+    %close(In).
 
 jsonparse(JSONString, Object) :-
     atom(JSONString),
@@ -19,8 +21,8 @@ jsonparse(JSONString, Object) :-
 jsonparse(['{' | Chs], jsonobj(R)) :-
     object(['{' | Chs], R, _).
 
-jsonparse(['[' | Chs], jsonarray(R)) :-
-    array(Chs, R, _).
+jsonparse(['[' | Chs], V) :-
+    value(['['| Chs], V, Rem).
 
 object([], [], []).
 object(['}', ',' | T], [], T).
@@ -38,6 +40,7 @@ pair(Pair, (K, V), Rem) :-
     whitespace(Rest, VTrimmed),
     value(VTrimmed, V, Rem).
 
+key([],[],[]).%INV%
 key([':' | T], [], T).
 key(['"' | Chs], Ks, Rem) :-
     stringparse(Chs, K, Rest),
@@ -53,7 +56,7 @@ value([Ch | Chs], I, Rest) :-
     char_type(Ch, digit),
     !,
     whitespace([Ch | Chs], Trimmed),
-    integer(Trimmed, R, Rest),
+    parseint(Trimmed, R, Rest),
     string_chars(S, R),
     atom_number(S, I).
 value(['"'| Chs], S, Rem) :-
@@ -64,7 +67,8 @@ value(['"'| Chs], S, Rem) :-
     value(RestTrimmed, [], Rem).
 value(['[' | Chs], jsonarray(R), Trimmed) :-
     !,
-    array(Chs, R, Rem),
+    whitespace(Chs, ChsTrimmed),
+    parsearray(ChsTrimmed, R, Rem),
     whitespace(Rem, Trimmed).
 value(['{' | Chs], jsonobj(R), Trimmed) :-
     !,
@@ -75,13 +79,14 @@ stringparse(['"' | T], [], T).%INV%
 stringparse([Ch | Chs], [Ch | R], Rest) :-
     stringparse(Chs, R, Rest).
 
-integer([',' | T], [], T).%INV%
-integer(['}' | T], [], T).
-integer([']' | T], [], [']' | T]).
-integer([Ch | Chs], [Ch | R], Rest) :-
+parseint([',' | T], [], T).
+%parseint(['}' | T], [], T).
+%parseint([']' | T], [], [']' | T]).
+parseint([Ch | T], [], [Ch | T]) :-
+    \+(char_type(Ch, digit)), !.
+parseint([Ch | Chs], [Ch | R], Rest) :-
     char_type(Ch, digit),
-    integer(Chs, R, Rest).
-    %whitespace(Rest, ChsTrimmed).
+    parseint(Chs, R, Rest).
 
 whitespace([], []).%INV%
 whitespace([Ch | Chs], [Ch | Chs]) :-
@@ -92,12 +97,12 @@ whitespace([Ch | Chs], [Ch | Chs]) :-
 whitespace([_ | Chs], R) :-
     whitespace(Chs, R).
 
-array([']' | T], [], T).
-array(Chs, [V | R], Rest) :-
+parsearray([']' | T], [], T).
+parsearray(Chs, [V | R], Rest) :-
     whitespace(Chs, ChsTrimmed),
     value(ChsTrimmed, V, Rem),
     whitespace(Rem, RestTrimmed),
-    array(RestTrimmed, R, Rest).
+    parsearray(RestTrimmed, R, Rest).
 
 
 runtests() :-
@@ -112,4 +117,59 @@ runtests() :-
     jsonread("./tests/test5.json", R5),
     write(R5), nl,
     jsonread("./tests/test6.json", R6),
-    write(R6), nl.
+    write(R6), nl,
+    jsonread("./tests/test7.json", R7),
+    write(R7), nl,
+    jsonread("./tests/test8.json", R8),
+    write(R8), nl.
+
+
+
+jsonaccess(Jsonobj, Field, Result) :-
+    string(Field),
+    jsonaccess(Jsonobj, [Field], Result).
+
+jsonaccess(R, [], R).
+jsonaccess(jsonobj(L), [Field | Fields], Ric) :-
+    string(Field),
+    acceskey(L, Field, Result),
+    jsonaccess(Result, Fields, Ric).
+jsonaccess(jsonarray(L), [Field | Fields], Ric) :-
+    integer(Field),
+    length(L, Len),
+    Field < Len,
+    accesarray(L, Field, Result),
+    jsonaccess(Result, Fields, Ric).
+
+acceskey([], _, _):- !,fail.
+acceskey([(Field, R) | _], Field, R).
+acceskey([_ | R], Field, Result) :-
+    acceskey(R, Field, Result).
+
+accesarray([L | _], 0, L) :-
+    L \= [].
+accesarray([_ | Ls], Index, R) :-
+    Cnt is Index - 1,
+    accesarray(Ls, Cnt, R).
+
+jsondump(JSON, FileName) :-
+    jsonreverse(JSON, List),
+    open(FileName, write, Out),
+    atomic_list_concat(List, Str),
+    write(Str),
+    write(Out, Str),
+    close(Out).
+
+
+%jsonreverse(jsonobj([(K, V) | []]), [K, ':', V, '}']) :-
+    %string_chars([], Str).
+jsonreverse(jsonobj(L), ["{", Str, "}"]) :-
+    reverseobj(L, R),
+    atomic_list_concat(R, Str).
+
+reverseobj([(K, V)], ["\"", K, "\"", ':', V]).
+reverseobj([(K, V) | L], ["\"", K, "\"", ':', V, ',' | R]) :-
+    reverseobj(L, R).
+    %jsonreverse(jsonobj([L]), R).
+%jsonreverse(jsonarray([F | L]), ['[' | Str]) :-
+

@@ -2,6 +2,7 @@
     "modello" : "SuperBook 1234",
     "anno di produzione" : 2014,
     "processore" : {
+        "code" : 1000,
      "produttore" : "EsseTi",
     "velocità di funzionamento (GHz)" : [1, 2, 4, 8]
      }
