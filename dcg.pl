@@ -21,16 +21,16 @@ jsonparse(JSONString, Object) :-
 json(JSON) --> object(JSON); array(JSON). 
 
 object(jsonobj([])) --> skips, ['{'], skips, ['}'], skips.
-object(jsonobj(Members)) --> skips, ['{'], skips, members(Members), skips, ['}'], skips.
+object(jsonobj(Ms)) --> skips, ['{'], skips, members(Ms), skips, ['}'], skips.
 
 array(jsonarray([])) --> skips, ['['], skips, [']'], skips.
-array(jsonarray(Values)) --> skips, ['['], skips, values(Values), skips, [']'], skips.
+array(jsonarray(Vs)) --> skips, ['['], skips, values(Vs), skips, [']'], skips.
 
-values([Value]) --> value(Value).
-values([Value | Values]) --> skips, value(Value), skips, [','], skips, values(Values).
+values([V]) --> value(V).
+values([V | Vs]) --> skips, value(V), skips, [','], skips, values(Vs).
 
-members([Member]) --> member(Member).
-members([Member | Members]) --> member(Member), skips, [','], skips, members(Members).
+members([M]) --> member(M).
+members([M | Ms]) --> member(M), skips, [','], skips, members(Ms).
 
 member((K, V)) --> skips, key(K), skips, [':'], skips, value(V), skips.
 
@@ -89,24 +89,25 @@ accessarray([_ | Values], Index, Result) :-
 
 
 jsondump(JSON, FileName) :-
-    jsonreverse(JSON, List),
+    jsonreverse(JSON, ReversedObject),
     open(FileName, write, Out),
-    atomic_list_concat(List, Str),
-    write(Out, Str),
+    write(Out, ReversedObject),
     close(Out).
 
-jsonreverse(jsonobj(Members), ["{", String, "}"]) :-
+jsonreverse(jsonobj(Members), Reversed) :-
     reverseobj(Members, Result),
-    atomic_list_concat(Result, String).
+    atomic_list_concat(Result, String),
+    format(string(Reversed), '{~s}', String).
 
-jsonreverse(jsonarray(Values), ["[", String, "]"]) :-
+jsonreverse(jsonarray(Values), Reversed) :-
     reversearray(Values, Result),
-    atomic_list_concat(Result, String).
+    atomic_list_concat(Result, String),
+    format(string(Reversed), '[~s]', String).
 
 reverseobj([], []).
-reverseobj([(K, V)], ["\"", K, "\"", ':', VReversed]) :-
+reverseobj([(K, V)], ['"', K, '"', ':', VReversed]) :-
     reversevalue(V, VReversed).
-reverseobj([(K, V) | Members], ["\"", K, "\"", ':', VReversed, ',' | R]) :-
+reverseobj([(K, V) | Members], ['"', K, '"', ':', VReversed, ',' | R]) :-
     reversevalue(V, VReversed),
     reverseobj(Members, R).
 
@@ -120,9 +121,7 @@ reversearray([Value | Values], [VReversed, ',' | R]) :-
 reversevalue(Value, VReversed) :-
     string(Value),
     !,
-    string_chars(Value, CharList),
-    append(['"' | CharList], ['"'], R),
-    string_chars(VReversed, R).
+    format(string(VReversed), '"~s"', Value).
 
 reversevalue(Value, VReversed) :-
     number(Value),
@@ -132,12 +131,10 @@ reversevalue(Value, VReversed) :-
 reversevalue(Value, VReversed) :-
     functor(Value, jsonobj, 1),
     !,
-    jsonreverse(Value, R),
-    atomic_list_concat(R, VReversed).
+    jsonreverse(Value, VReversed).
 
 reversevalue(Value, VReversed) :-
     functor(Value, jsonarray, 1),
     !,
-    jsonreverse(Value, R),
-    atomic_list_concat(R, VReversed).
+    jsonreverse(Value, VReversed).
 
