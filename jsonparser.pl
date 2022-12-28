@@ -4,205 +4,139 @@ jsonread(FileName, JSON) :-
     read_string(In, _, Str),
     jsonparse(Str, JSON),
     !.
-    %close(In).
-
-jsonparse(JSONString, Object) :-
-    atom(JSONString),
-    !,
-    atom_string(JSONString, Str),
-    jsonparse(Str, Object).
 
 jsonparse(JSONString, Object) :-
     string(JSONString),
     !,
-    string_chars(JSONString, Chars),
-    jsonparse(Chars, Object).
+    string_chars(JSONString, CharList),
+    json(Object, CharList, []).
 
-jsonparse(['{' | Chs], jsonobj(R)) :-
-    object(['{' | Chs], R, _).
-
-jsonparse(['[' | Chs], V) :-
-    value(['['| Chs], V, Rem).
-
-object([], [], []).
-object(['}', ',' | T], [], T).
-object(['}' | T], [], T).
-object(['{' | Str], R, Rest) :-
-    whitespace(Str, Trimmed),
-    object(Trimmed, R, Rest).
-object(Str, [P | R], Rest) :-
-    pair(Str, P, Rem),
-    object(Rem, R, Rest).
-
-pair(Pair, (K, V), Rem) :-
-    whitespace(Pair, KTrimmed),
-    key(KTrimmed, K, Rest),
-    whitespace(Rest, VTrimmed),
-    value(VTrimmed, V, Rem).
-
-key([],[],[]).%INV%
-key([':' | T], [], T).
-key(['"' | Chs], Ks, Rem) :-
-    stringparse(Chs, K, Rest),
-    string_chars(Ks, K),
-    whitespace(Rest, Trimmed),
-    key(Trimmed, [], Rem).
-
-value(['}' | T], [], ['}' | T]).
-value([',' | T], [], T).
-value([']' | T], [], [']' | T]).
-value([Ch | Chs], I, Rest) :-
-    Ch \= '"',
-    char_type(Ch, digit),
+jsonparse(JSONString, Object) :-
+    atom(JSONString),
     !,
-    whitespace([Ch | Chs], Trimmed),
-    parseint(Trimmed, R, Rest),
-    string_chars(S, R),
-    atom_number(S, I).
-value(['"'| Chs], S, Rem) :-
-    !,
-    stringparse(Chs, R, Rest),
-    string_chars(S, R),
-    whitespace(Rest, RestTrimmed),
-    value(RestTrimmed, [], Rem).
-value(['[' | Chs], jsonarray(R), Trimmed) :-
-    !,
-    whitespace(Chs, ChsTrimmed),
-    parsearray(ChsTrimmed, R, Rem),
-    whitespace(Rem, Trimmed).
-value(['{' | Chs], jsonobj(R), Trimmed) :-
-    !,
-    object(['{' | Chs], R, Rem),
-    whitespace(Rem, Trimmed).
+    atom_string(JSONString, String),
+    string_chars(String, CharList),
+    json(Object, CharList, []).
 
-stringparse(['"' | T], [], T).%INV%
-stringparse([Ch | Chs], [Ch | R], Rest) :-
-    stringparse(Chs, R, Rest).
+json(JSON) --> object(JSON); array(JSON). 
 
-parseint([',' | T], [], T).
-%parseint(['}' | T], [], T).
-%parseint([']' | T], [], [']' | T]).
-parseint([Ch | T], [], [Ch | T]) :-
-    \+(char_type(Ch, digit)), !.
-parseint([Ch | Chs], [Ch | R], Rest) :-
-    char_type(Ch, digit),
-    parseint(Chs, R, Rest).
+object(jsonobj([])) --> skips, ['{'], skips, ['}'], skips.
+object(jsonobj(Ms)) --> skips, ['{'], skips, members(Ms), skips, ['}'], skips.
 
-whitespace([], []).%INV%
-whitespace([Ch | Chs], [Ch | Chs]) :-
-    Ch \= ' ',
-    Ch \= '\n',
-    Ch \= '\r',
-    Ch \= '\t'.
-whitespace([_ | Chs], R) :-
-    whitespace(Chs, R).
+array(jsonarray([])) --> skips, ['['], skips, [']'], skips.
+array(jsonarray(Vs)) --> skips, ['['], skips, values(Vs), skips, [']'], skips.
 
-parsearray([']' | T], [], T).
-parsearray(Chs, [V | R], Rest) :-
-    whitespace(Chs, ChsTrimmed),
-    value(ChsTrimmed, V, Rem),
-    whitespace(Rem, RestTrimmed),
-    parsearray(RestTrimmed, R, Rest).
+values([V]) --> value(V).
+values([V | Vs]) --> skips, value(V), skips, [','], skips, values(Vs).
 
+members([M]) --> member(M).
+members([M | Ms]) --> member(M), skips, [','], skips, members(Ms).
 
-runtests() :-
-    jsonread("./tests/test1.json", R1),
-    write(R1), nl,
-    jsonread("./tests/test2.json", R2),
-    write(R2), nl,
-    jsonread("./tests/test3.json", R3),
-    write(R3), nl,
-    jsonread("./tests/test4.json", R4),
-    write(R4), nl,
-    jsonread("./tests/test5.json", R5),
-    write(R5), nl,
-    jsonread("./tests/test6.json", R6),
-    write(R6), nl,
-    jsonread("./tests/test7.json", R7),
-    write(R7), nl,
-    jsonread("./tests/test8.json", R8),
-    write(R8), nl.
+member((K, V)) --> skips, key(K), skips, [':'], skips, value(V), skips.
 
+key(Vs) --> stringToken(V), {string_chars(Vs, V)}.
+
+value(Vs) --> stringToken(V), {string_chars(Vs, V)}.
+value(I) --> numberToken(V), {string_chars(Vs, V), atom_number(Vs, I)}.
+value(O) --> object(O).
+value(A) --> array(A).
+value(Bool) --> [t, r, u, e], {Bool = true}; [f, a, l, s, e], {Bool = false}.
+value(Null) --> [n, u, l, l], {Null = null}.
+
+stringToken(S) --> skips, ['"'], charsToken(S), ['"'], skips.
+charsToken([Ch]) --> [Ch], {Ch \= '"'}.
+charsToken([Ch | Chs]) --> [Ch], {Ch \= '"'}, charsToken(Chs).
+
+numberToken(N) --> skips, digits(N), skips.
+numberToken(N) --> skips, digits(I), ['.'], digits(D), skips, {append(I, ['.' | D], N)}.
+numberToken(N) --> skips, digits(N).
+numberToken(['-' | N]) --> skips, ['-'], numberToken(N), skips.
+digits([D]) --> digit(D).
+digits([D | Ds]) --> digit(D), !, digits(Ds).
+digit(D) --> [D], {char_type(D, digit)}.
+
+skips --> [].
+skips --> skip.
+skips --> skip, !, skips.
+skip --> ['\n']; [' ']; ['\r']; ['\t'].
 
 
 jsonaccess(Jsonobj, Field, Result) :-
     string(Field),
     jsonaccess(Jsonobj, [Field], Result).
 
-jsonaccess(R, [], R).
-jsonaccess(jsonobj(L), [Field | Fields], Ric) :-
+jsonaccess(Value, [], Value).
+jsonaccess(jsonobj(Members), [Field | Fields], Result) :-
     string(Field),
-    acceskey(L, Field, Result),
-    jsonaccess(Result, Fields, Ric).
-jsonaccess(jsonarray(L), [Field | Fields], Ric) :-
+    accesskey(Members, Field, Value),
+    jsonaccess(Value, Fields, Result).
+jsonaccess(jsonarray(Values), [Field | Fields], Result) :-
     integer(Field),
-    length(L, Len),
+    length(Values, Len),
+    Field > -1,
     Field < Len,
-    accesarray(L, Field, Result),
-    jsonaccess(Result, Fields, Ric).
+    accessarray(Values, Field, Value),
+    jsonaccess(Value, Fields, Result).
 
-acceskey([], _, _):- !,fail.
-acceskey([(Field, R) | _], Field, R).
-acceskey([_ | R], Field, Result) :-
-    acceskey(R, Field, Result).
+accesskey([], _, _) :- fail.
+accesskey([(Key, Value) | _], Key, Value).
+accesskey([(Key, _) | Members], Field, Result) :-
+    Key \= Field,
+    accesskey(Members, Field, Result).
 
-accesarray([L | _], 0, L) :-
-    L \= [].
-accesarray([_ | Ls], Index, R) :-
-    Cnt is Index - 1,
-    accesarray(Ls, Cnt, R).
+accessarray([Value | _], 0, Value).
+accessarray([_ | Values], Index, Result) :-
+    Count is Index - 1,
+    accessarray(Values, Count, Result).
+
 
 jsondump(JSON, FileName) :-
-    jsonreverse(JSON, List),
+    jsonreverse(JSON, ReversedObject),
     open(FileName, write, Out),
-    atomic_list_concat(List, Str),
-    write(Str),
-    write(Out, Str),
+    write(Out, ReversedObject),
     close(Out).
 
+jsonreverse(jsonobj(Members), Reversed) :-
+    reverseobj(Members, Result),
+    atomic_list_concat(Result, String),
+    format(string(Reversed), '{~s}', String).
 
-jsonreverse(jsonobj(L), ["{", Str, "}"]) :-
-    reverseobj(L, R),
-    atomic_list_concat(R, Str).
-
-jsonreverse(jsonarray(L), ["[", Str, "]"]) :-
-    reversearray(L, R),
-    atomic_list_concat(R, Str).
+jsonreverse(jsonarray(Values), Reversed) :-
+    reversearray(Values, Result),
+    atomic_list_concat(Result, String),
+    format(string(Reversed), '[~s]', String).
 
 reverseobj([], []).
-reverseobj([(K, V)], ["\"", K, "\"", ':', VR]) :-
-    reversevalue(V, VR).
-reverseobj([(K, V) | L], ["\"", K, "\"", ':', VR, ',' | R]) :-
-    reversevalue(V, VR),
-    reverseobj(L, R).
+reverseobj([(K, V)], ['"', K, '"', ':', VReversed]) :-
+    reversevalue(V, VReversed).
+reverseobj([(K, V) | Members], ['"', K, '"', ':', VReversed, ',' | R]) :-
+    reversevalue(V, VReversed),
+    reverseobj(Members, R).
 
 reversearray([], []).
-reversearray([V], [VR]) :-
-    reversevalue(V, VR).
-reversearray([V | L], [VR, ',' | R]) :-
-    reversevalue(V, VR),
-    reversearray(L, R).
+reversearray([Value], [VReversed]) :-
+    reversevalue(Value, VReversed).
+reversearray([Value | Values], [VReversed, ',' | R]) :-
+    reversevalue(Value, VReversed),
+    reversearray(Values, R).
 
-reversevalue(V, VR) :-
-    string(V),
+reversevalue(Value, VReversed) :-
+    string(Value),
     !,
-    string_chars(V, L),
-    append(['"' | L], ['"'], R),
-    string_chars(VR, R).
+    format(string(VReversed), '"~s"', Value).
 
-reversevalue(V, VR) :-
-    number(V),
+reversevalue(Value, VReversed) :-
+    number(Value),
     !,
-    atom_string(V, VR).
+    atom_string(Value, VReversed).
 
-reversevalue(V, VR) :-
-    functor(V, jsonobj, 1),
+reversevalue(Value, VReversed) :-
+    functor(Value, jsonobj, 1),
     !,
-    jsonreverse(V, L),
-    atomic_list_concat(L, VR).
+    jsonreverse(Value, VReversed).
 
-reversevalue(V, VR) :-
-    functor(V, jsonarray, 1),
+reversevalue(Value, VReversed) :-
+    functor(Value, jsonarray, 1),
     !,
-    jsonreverse(V, L),
-    atomic_list_concat(L, VR).
+    jsonreverse(Value, VReversed).
+
