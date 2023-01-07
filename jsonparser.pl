@@ -74,14 +74,17 @@ charsToken([Ch | Chs]) --> [Ch], {Ch \= '"'}, charsToken(Chs).
 %Definizione della struttura di un numero.
 %Sono accettati i numeri interi e decimali sia positivi che negativi
 numberToken(N) --> skips, digits(N), skips.
-numberToken(N) --> skips, digits(I), ['.'], digits(D), skips, {append(I, ['.' | D], N)}.
+numberToken(N) --> skips, digits(I), ['.'], digits(D),
+    skips, {append(I, ['.' | D], N)}.
 numberToken(N) --> skips, digits(N).
-numberToken(['-' | N]) --> skips, ['-'], numberToken(N), skips.
+numberToken(['-' | N]) --> skips, ['-'], !, numberToken(N), skips.
+numberToken(N) --> skips, numberToken(B), ['e'], !,
+    numberToken(E), skips, {append(B, ['e' | E], N)}.
 digits([D]) --> digit(D).
 digits([D | Ds]) --> digit(D), !, digits(Ds).
 digit(D) --> [D], {char_type(D, digit)}.
 
-%Definizione dei caratteri considerati whitespace
+%Definizione dei caratteri whitespace
 skips --> [].
 skips --> skip.
 skips --> skip, !, skips.
