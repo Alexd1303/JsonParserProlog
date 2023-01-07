@@ -82,7 +82,10 @@ numberToken(['-' | N]) --> skips, ['-'], !, numberToken(N), skips.
 digits([D]) --> digit(D).
 digits([D | Ds]) --> digit(D), !, digits(Ds).
 digit(D) --> [D], {char_type(D, digit)}.
-expNumberToken(N) --> skips, numberToken(B), ['e'], !, digits(E), skips, {append(B, ['e' | E], N)}.
+expNumberToken(N) --> skips, numberToken(B), ['e'],
+digits(E), skips, {append(B, ['e' | E], N)}.
+expNumberToken(N) --> skips, numberToken(B), ['e'],
+['-'], digits(E), skips, {append(B, ['e', '-' | E], N)}.
 
 %Definizione dei caratteri whitespace
 skips --> [].
