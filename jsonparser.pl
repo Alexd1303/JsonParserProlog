@@ -28,7 +28,7 @@ jsonparse(JSONString, Object) :-
 %Definizione della struttura di un JSON.
 %Può essere un oggetto, contenente coppie chiave-valore,
 %o un array, contente valori di qualsiasi tipo
-json(JSON) --> object(JSON); array(JSON). 
+json(JSON) --> object(JSON), !; array(JSON), !. 
 
 %Definizione della struttura di un oggetto JSON.
 %Può essere vuoto o contenere delle coppie chiave-valore
@@ -61,6 +61,7 @@ key(Vs) --> stringToken(V), {string_chars(Vs, V)}.
 %Definizione dei possibili valori contenuti in un JSON.
 value(Vs) --> stringToken(V), {string_chars(Vs, V)}.
 value(I) --> numberToken(V), {string_chars(Vs, V), atom_number(Vs, I)}.
+value(N) --> expNumberToken(V), {string_chars(Vs, V), atom_number(Vs, N)}.
 value(O) --> object(O).
 value(A) --> array(A).
 value(Bool) --> [t, r, u, e], {Bool = true}; [f, a, l, s, e], {Bool = false}.
@@ -78,11 +79,10 @@ numberToken(N) --> skips, digits(I), ['.'], digits(D),
     skips, {append(I, ['.' | D], N)}.
 numberToken(N) --> skips, digits(N).
 numberToken(['-' | N]) --> skips, ['-'], !, numberToken(N), skips.
-numberToken(N) --> skips, numberToken(B), ['e'], !,
-    numberToken(E), skips, {append(B, ['e' | E], N)}.
 digits([D]) --> digit(D).
 digits([D | Ds]) --> digit(D), !, digits(Ds).
 digit(D) --> [D], {char_type(D, digit)}.
+expNumberToken(N) --> skips, numberToken(B), ['e'], !, digits(E), skips, {append(B, ['e' | E], N)}.
 
 %Definizione dei caratteri whitespace
 skips --> [].
