@@ -150,7 +150,8 @@ jsonreverse(jsonarray(Values), Reversed) :-
     atomic_list_concat(Result, String),
     format(string(Reversed), '[~s]', String).
 
-%Vera se il secondo argomento è la lista degli atomi che rappresentano l'oggetto
+%Vera se il secondo argomento è la lista 
+%degli atomi che rappresentano l'oggetto
 reverseobj([], []).
 reverseobj([(K, V)], ['"', K, '"', ':', VReversed]) :-
     reversevalue(V, VReversed).
