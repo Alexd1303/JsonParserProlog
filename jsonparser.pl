@@ -1,3 +1,7 @@
+%Dubini Alessandro 885957
+%Foggetti Mattia 885958
+%Elia Leonardo Martin 886366
+
 %Regola per la lettura da file.
 %Vera se dalla stringa contenuta
 %nel file con percorso FileName
@@ -71,6 +75,7 @@ value(Null) --> [n, u, l, l], {Null = null}.
 stringToken(S) --> skips, ['"'], charsToken(S), ['"'], skips.
 charsToken([Ch]) --> [Ch], {Ch \= '"'}.
 charsToken([Ch | Chs]) --> [Ch], {Ch \= '"'}, charsToken(Chs).
+charsToken([Ch | Chs]) --> ['\\'], [Ch], charsToken(Chs).
 
 %Definizione della struttura di un numero.
 %Sono accettati i numeri interi e decimali sia positivi che negativi
@@ -128,6 +133,7 @@ accessarray([_ | Values], Index, Result) :-
 %sul file il cui percorso è FileName
 jsondump(JSON, FileName) :-
     jsonreverse(JSON, ReversedObject),
+    !,
     open(FileName, write, Out),
     write(Out, ReversedObject),
     close(Out).
@@ -135,10 +141,12 @@ jsondump(JSON, FileName) :-
 %Vero se Reversed contiene la stringa che rappresenta il JSON
 jsonreverse(jsonobj(Members), Reversed) :-
     reverseobj(Members, Result),
+    !,
     atomic_list_concat(Result, String),
     format(string(Reversed), '{~s}', String).
 jsonreverse(jsonarray(Values), Reversed) :-
     reversearray(Values, Result),
+    !,
     atomic_list_concat(Result, String),
     format(string(Reversed), '[~s]', String).
 
@@ -162,7 +170,8 @@ reversearray([Value | Values], [VReversed, ',' | R]) :-
 reversevalue(Value, VReversed) :-
     string(Value),
     !,
-    format(string(VReversed), '"~s"', Value).
+    fixstring(Value, Fixed),
+    format(string(VReversed), '"~s"', Fixed).
 reversevalue(Value, VReversed) :-
     number(Value),
     !,
@@ -175,3 +184,25 @@ reversevalue(Value, VReversed) :-
     functor(Value, jsonarray, 1),
     !,
     jsonreverse(Value, VReversed).
+
+fixstring(Str, Fixed) :-
+    string(Str),
+    !,
+    string_chars(Str, Chs),
+    fixstring(Chs, FChs),
+    string_chars(Fixed, FChs).
+fixstring([], []).
+fixstring(['"' | Chs], ['\\', '"' | Fixed]) :-
+    !,
+    fixstring(Chs, Fixed).
+fixstring([Ch | Chs], [Ch | Fixed]) :-
+    Ch \= '"',
+    !,
+    fixstring(Chs, Fixed).
+fixstring(['\\' | Chs], ['\\', '\\' | Fixed]) :-
+    !,
+    fixstring(Chs, Fixed).
+fixstring([Ch | Chs], [Ch | Fixed]) :-
+    Ch \= '\\',
+    !,
+    fixstring(Chs, Fixed).
