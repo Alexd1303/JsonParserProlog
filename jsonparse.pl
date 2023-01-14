@@ -1,6 +1,6 @@
 %Dubini Alessandro 885957
 %Foggetti Mattia 885958
-%Elia Leonardo Martin 886366
+%Martin Elia Leonardo 886366
 
 %Regola per la lettura da file.
 %Vera se dalla stringa contenuta
