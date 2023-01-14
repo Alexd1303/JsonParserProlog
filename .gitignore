@@ -1,3 +1,4 @@
 tests
-tests/**
-.json
+prev.pl
+.DS_Store
+*.json
