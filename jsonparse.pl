@@ -186,6 +186,8 @@ reversevalue(Value, VReversed) :-
     !,
     jsonreverse(Value, VReversed).
 
+%Vero se Fixed è la stringa rappresentata da
+%Str con i caratteri di escape corretti
 fixstring(Str, Fixed) :-
     string(Str),
     !,
